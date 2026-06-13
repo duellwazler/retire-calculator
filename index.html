@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0,user-scalable=no">
+<meta name="theme-color" content="#070f1e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="apple-mobile-web-app-title" content="เกษียณ45">
+<title>แผนเกษียณ 45 🇹🇭</title>
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.svg">
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{background:#070f1e;font-family:'Noto Sans Thai','Segoe UI',-apple-system,sans-serif;color:#e2e8f0;-webkit-font-smoothing:antialiased}
+input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:2px;background:#1e3a5f;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;background:#FBBF24;cursor:pointer;box-shadow:0 0 10px #FBBF2466}
+input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#FBBF24;cursor:pointer;border:none}
+button{font-family:inherit}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-thumb{background:#1e3a5f;border-radius:2px}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const {useState,useMemo,useCallback,useRef} = React;
+
+const PHASES = [
+  {id:0,th:'วัยสดใส',   range:[45,55], color:'#34D399',bg:'#022c22',mul:1.0,desc:'ท่องเที่ยว ทำงานอดิเรก ใช้ชีวิตเต็มที่'},
+  {id:1,th:'วัยปรับตัว',range:[55,65], color:'#FBBF24',bg:'#2d1900',mul:1.2,desc:'ลดกิจกรรม เน้นสุขภาพ ค่าแพทย์เริ่มเพิ่ม'},
+  {id:2,th:'วัยอาวุโส', range:[65,75], color:'#60A5FA',bg:'#0c1d3b',mul:1.5,desc:'ค่ารักษาพยาบาลสูงขึ้นมาก ดูแลตัวเอง'},
+  {id:3,th:'วัยพึ่งพา', range:[75,85], color:'#FB923C',bg:'#2a0d00',mul:2.0,desc:'ต้องการผู้ดูแล / Assisted Living'},
+  {id:4,th:'วัยดูแลเต็ม',range:[85,101],color:'#C084FC',bg:'#1a0a2e',mul:2.4,desc:'บ้านพักผู้สูงอายุเต็มรูปแบบ'},
+];
+
+const fmtS = v=>{const n=Math.abs(v);if(n>=1e6)return`${(v/1e6).toFixed(1)}ล.`;if(n>=1e3)return`${Math.round(v/1e3)}K`;return`${Math.round(v)}`;};
+const fmtTHB = v=>{if(Math.abs(v)>=1e6)return`฿${(v/1e6).toFixed(2)} ล้าน`;return`฿${Math.round(v).toLocaleString('th-TH')}`;};
+
+function Chart({data,dataKey,color,h=190}){
+  const [hover,setHover]=useState(null);
+  const svgRef=useRef(null);
+  if(!data||!data.length)return null;
+  const W=300,H=h,pL=46,pR=8,pT=8,pB=26,cW=W-pL-pR,cH=H-pT-pB;
+  const vals=data.map(d=>d[dataKey]);
+  const maxV=Math.max(...vals)||1;
+  const xs=i=>pL+(i/(data.length-1||1))*cW;
+  const ys=v=>pT+cH-(v/maxV)*cH;
+  const pts=data.map((d,i)=>`${xs(i)},${ys(d[dataKey])}`).join(' L ');
+  const yTicks=[0,.25,.5,.75,1].map(t=>({v:maxV*t,y:pT+cH*(1-t)}));
+  const xLbls=data.filter((d,i)=>d.age%10===0||i===0||i===data.length-1);
+  const onMove=useCallback(e=>{
+    if(!svgRef.current)return;
+    const rect=svgRef.current.getBoundingClientRect();
+    const cx=(e.touches?e.touches[0].clientX:e.clientX)-rect.left;
+    const idx=Math.max(0,Math.min(data.length-1,Math.round((cx/rect.width*W-pL)/cW*(data.length-1))));
+    setHover(idx);
+  },[data.length]);
+  const hd=hover!==null?data[hover]:null;
+  return(
+    <div style={{position:'relative'}}>
+      <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} style={{width:'100%',display:'block',cursor:'crosshair'}}
+        onMouseMove={onMove} onTouchMove={onMove}
+        onMouseLeave={()=>setHover(null)} onTouchEnd={()=>setHover(null)}>
+        <defs>
+          <linearGradient id={`g${dataKey}`} x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={color} stopOpacity=".4"/>
+            <stop offset="100%" stopColor={color} stopOpacity=".02"/>
+          </linearGradient>
+        </defs>
+        {yTicks.map((t,i)=>(
+          <g key={i}>
+            <line x1={pL} y1={t.y} x2={W-pR} y2={t.y} stroke="#1a2d45" strokeDasharray="3 3"/>
+            <text x={pL-4} y={t.y+4} textAnchor="end" fill="#334155" fontSize="9">{fmtS(t.v)}</text>
+          </g>
+        ))}
+        <path d={`M ${pts} L ${xs(data.length-1)},${pT+cH} L ${pL},${pT+cH} Z`} fill={`url(#g${dataKey})`}/>
+        <path d={`M ${pts}`} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+        {xLbls.map((d,i)=>{
+          const idx=data.findIndex(x=>x.age===d.age);
+          return <text key={i} x={xs(idx)} y={H-4} textAnchor="middle" fill="#334155" fontSize="9">{d.age}</text>;
+        })}
+        {hover!==null&&hd&&(<>
+          <line x1={xs(hover)} y1={pT} x2={xs(hover)} y2={pT+cH} stroke={color} strokeWidth="1" strokeDasharray="4 3" opacity=".6"/>
+          <circle cx={xs(hover)} cy={ys(hd[dataKey])} r="4" fill={color} stroke="#070f1e" strokeWidth="2"/>
+        </>)}
+      </svg>
+      {hd&&(
+        <div style={{
+          position:'absolute',top:6,
+          left:hover>data.length*.6?'auto':`calc(${(xs(hover)/W)*100}% + 6px)`,
+          right:hover>data.length*.6?`calc(${((W-xs(hover))/W)*100}% + 6px)`:'auto',
+          background:'#060d1c',border:'1px solid #1e3a5f',borderRadius:8,
+          padding:'7px 10px',fontSize:12,pointerEvents:'none',zIndex:10,whiteSpace:'nowrap',
+        }}>
+          <div style={{color,fontWeight:800,marginBottom:2}}>อายุ {hd.age} ปี · {hd.ph}</div>
+          <div style={{color:'#e2e8f0'}}>{fmtTHB(hd[dataKey])}</div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function Slider({label,value,min,max,step,onChange,display,note}){
+  return(
+    <div style={{marginBottom:20}}>
+      <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
+        <span style={{color:'#94a3b8',fontSize:13}}>{label}</span>
+        <span style={{color:'#FBBF24',fontWeight:800,fontSize:15}}>{display(value)}</span>
+      </div>
+      <input type="range" min={min} max={max} step={step} value={value} onChange={e=>onChange(Number(e.target.value))}/>
+      {note&&<div style={{color:'#334155',fontSize:11,marginTop:5}}>{note}</div>}
+    </div>
+  );
+}
+
+function Kpi({label,value,sub,color='#e2e8f0',border='#1e3a5f',bg='#0f1e35'}){
+  return(
+    <div style={{background:bg,border:`1px solid ${border}`,borderRadius:12,padding:'13px 14px'}}>
+      <div style={{color:'#475569',fontSize:11,marginBottom:5,lineHeight:1.3}}>{label}</div>
+      <div style={{color,fontSize:17,fontWeight:900,lineHeight:1.2}}>{value}</div>
+      {sub&&<div style={{color:'#334155',fontSize:11,marginTop:4}}>{sub}</div>}
+    </div>
+  );
+}
+
+function TabBtn({label,active,onClick}){
+  return(
+    <button onClick={onClick} style={{
+      flex:1,padding:'10px 2px',
+      background:active?'#FBBF24':'transparent',
+      color:active?'#000':'#475569',
+      border:'none',borderRadius:8,
+      fontWeight:active?800:500,fontSize:12,cursor:'pointer',
+    }}>{label}</button>
+  );
+}
+
+function Sec({title,children}){
+  return(
+    <div style={{background:'#0f1e35',border:'1px solid #1e3a5f',borderRadius:14,padding:'18px 16px',marginBottom:14}}>
+      <div style={{fontSize:10,color:'#334155',letterSpacing:2.5,textTransform:'uppercase',marginBottom:18}}>{title}</div>
+      {children}
+    </div>
+  );
+}
+
+function App(){
+  const [tab,  setTab] = useState(0);
+  const [curAge,setCur]= useState(35);
+  const [retAge,setRet]= useState(45);
+  const [mo,   setMo]  = useState(50000);
+  const [sav,  setSav] = useState(5000000);
+  const [rPct, setRP]  = useState(6);
+  const [iPct, setIP]  = useState(3);
+  const [swr,  setSwr] = useState(3.5);
+
+  const base=mo*12, req=base/(swr/100), gap=sav-req;
+  const realR=((1+rPct/100)/(1+iPct/100)-1)*100;
+  const yL=Math.max(0,retAge-curAge);
+  const r=rPct/100/12,n=yL*12,FV=Math.max(0,-gap);
+  const needSave=FV>0&&n>0?(FV*r)/(Math.pow(1+r,n)-1):0;
+
+  const sim=useMemo(()=>{
+    const out=[];let cap=sav;
+    for(let age=retAge;age<=100;age++){
+      const ph=PHASES.find(p=>age>=p.range[0]&&age<p.range[1])??PHASES[4];
+      const yr=age-retAge;
+      const exp=base*ph.mul*Math.pow(1+iPct/100,yr);
+      cap=cap*(1+rPct/100)-exp;
+      out.push({age,ph:ph.th,capital:Math.max(0,Math.round(cap)),monthly:Math.round(exp/12),gone:cap<=0});
+      if(cap<=0)break;
+    }
+    return out;
+  },[retAge,mo,sav,rPct,iPct,base]);
+
+  const goneAt=sim.find(d=>d.gone)?.age;
+  const ok=!goneAt;
+
+  return(
+    <div style={{minHeight:'100vh',paddingBottom:24}}>
+      {/* Header */}
+      <div style={{padding:'20px 16px 14px',background:'linear-gradient(160deg,#0c1a32,#0a2040)',borderBottom:'1px solid #1e3a5f'}}>
+        <div style={{fontSize:9,letterSpacing:3.5,color:'#FBBF24',textTransform:'uppercase',marginBottom:5}}>Early Retirement Planner · Thailand 🇹🇭</div>
+        <h1 style={{fontSize:22,fontWeight:900}}>เกษียณอายุ {retAge} ปี · โสด</h1>
+        <p style={{color:'#334155',fontSize:12,marginTop:4}}>ปรับค่าด้านล่าง → เห็นผลทันที</p>
+      </div>
+
+      {/* Banner */}
+      <div style={{margin:'14px 14px 0',padding:'12px 14px',borderRadius:12,
+        background:ok?'#021a12':'#1f0606',border:`1px solid ${ok?'#34D399':'#f06060'}`,
+        display:'flex',alignItems:'center',gap:12}}>
+        <span style={{fontSize:26}}>{ok?'✅':'⚠️'}</span>
+        <div style={{flex:1}}>
+          <div style={{color:ok?'#34D399':'#f06060',fontWeight:800,fontSize:14}}>
+            {ok?'เงินพอถึง 100 ปี!':`เงินหมดอายุ ${goneAt} ปี — ขาด ${100-goneAt} ปี`}
+          </div>
+          <div style={{color:'#334155',fontSize:11,marginTop:2}}>
+            {gap>=0?`เกินเป้า ${fmtTHB(gap)} · พร้อมเกษียณ`:`ขาดอีก ${fmtTHB(Math.abs(gap))} · ออมเพิ่ม ${fmtTHB(needSave)}/เดือน`}
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      <div style={{margin:'14px 14px',display:'flex',gap:4,padding:4,background:'#0f1e35',borderRadius:12,border:'1px solid #1e3a5f'}}>
+        {['⚙️ ตั้งค่า','📊 ผลลัพธ์','🗓 ชีวิต'].map((l,i)=>(
+          <TabBtn key={i} label={l} active={tab===i} onClick={()=>setTab(i)}/>
+        ))}
+      </div>
+
+      <div style={{padding:'0 14px'}}>
+
+      {tab===0&&(<>
+        <Sec title="ข้อมูลส่วนตัว">
+          <Slider label="อายุปัจจุบัน" value={curAge} min={20} max={65} step={1}
+            onChange={v=>{setCur(v);if(v>=retAge)setRet(v+1);}} display={v=>`${v} ปี`}/>
+          <Slider label="อายุเกษียณเป้าหมาย" value={retAge} min={35} max={70} step={1}
+            onChange={v=>setRet(Math.max(v,curAge+1))} display={v=>`${v} ปี`}
+            note={yL>0?`เหลืออีก ${yL} ปี`:'เกษียณได้เลยตอนนี้!'}/>
+        </Sec>
+        <Sec title="ค่าใช้จ่ายและเงินออม">
+          <Slider label="ค่าใช้จ่าย/เดือน (วันแรกที่เกษียณ)" value={mo} min={20000} max={200000} step={5000}
+            onChange={setMo} display={v=>`฿${(v/1000).toFixed(0)}K`}
+            note="ช่วง Go-Go 45–55 ปี (เพิ่มอัตโนมัติตามช่วงอายุ)"/>
+          <Slider label="เงินออม/พอร์ตลงทุนปัจจุบัน" value={sav} min={0} max={50000000} step={500000}
+            onChange={setSav} display={v=>v>=1e6?`฿${(v/1e6).toFixed(1)} ล้าน`:`฿${(v/1e3).toFixed(0)}K`}/>
+        </Sec>
+        <Sec title="สมมติฐานการเงิน">
+          <Slider label="ผลตอบแทนลงทุน/ปี" value={rPct} min={2} max={12} step={0.5}
+            onChange={setRP} display={v=>`${v}%`} note="พอร์ตหุ้น+กองทุน ระยะยาว ~6–8%"/>
+          <Slider label="เงินเฟ้อไทย/ปี" value={iPct} min={1} max={7} step={0.5}
+            onChange={setIP} display={v=>`${v}%`} note="ค่าเฉลี่ยระยะยาวของไทย ~3%"/>
+          <Slider label="Safe Withdrawal Rate (SWR)" value={swr} min={2.5} max={5} step={0.5}
+            onChange={setSwr} display={v=>`${v}%`} note="เกษียณ 55+ ปี แนะนำ 3–3.5%"/>
+          <div style={{background:'#060d1c',borderRadius:8,padding:'10px 12px',fontSize:12,color:'#475569'}}>
+            💡 Real Return: <b style={{color:'#60A5FA'}}>{realR.toFixed(1)}%</b>
+            {'  ·  '}ค่าใช้จ่าย/ปี: <b style={{color:'#FBBF24'}}>{fmtTHB(base)}</b>
+          </div>
+        </Sec>
+      </>)}
+
+      {tab===1&&(<>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
+          <Kpi label="เงินที่ต้องมี" value={fmtTHB(req)}
+            sub={`SWR ${swr}% · ฿${(mo/1e3).toFixed(0)}K/เดือน`}
+            color="#FBBF24" border="#FBBF2433" bg="#1a1200"/>
+          <Kpi label={gap>=0?'เกินเป้า ✓':'ยังขาด ✗'} value={fmtTHB(Math.abs(gap))}
+            sub={gap>=0?'พร้อมเกษียณ':`ออมเพิ่ม ฿${fmtS(needSave)}/เดือน`}
+            color={gap>=0?'#34D399':'#f06060'}
+            border={gap>=0?'#34D39933':'#f0606033'}
+            bg={gap>=0?'#021a12':'#1f0606'}/>
+          <Kpi label="เงินหมดอายุ" value={goneAt?`${goneAt} ปี`:'ไม่หมด 🎉'}
+            sub={goneAt?`ขาด ${100-goneAt} ปี`:'พอถึง 100 ปี'}
+            color={goneAt?'#f06060':'#34D399'}
+            border={goneAt?'#f0606033':'#34D39933'}
+            bg={goneAt?'#1f0606':'#021a12'}/>
+          <Kpi label="Real Return/ปี" value={`${realR.toFixed(1)}%`}
+            sub={`${rPct}% − ${iPct}% เงินเฟ้อ`}
+            color="#60A5FA" border="#60A5FA33" bg="#0c1d3b"/>
+        </div>
+        <div style={{background:'#0f1e35',border:'1px solid #1e3a5f',borderRadius:14,padding:'14px 10px 12px',marginBottom:14}}>
+          <div style={{fontSize:11,color:'#475569',marginBottom:10,paddingLeft:4}}>💰 มูลค่าพอร์ต · อายุ {retAge}–{sim[sim.length-1]?.age||100} ปี</div>
+          <Chart data={sim} dataKey="capital" color="#FBBF24" h={190}/>
+        </div>
+        <div style={{background:'#0f1e35',border:'1px solid #1e3a5f',borderRadius:14,padding:'14px 10px 12px'}}>
+          <div style={{fontSize:11,color:'#475569',marginBottom:10,paddingLeft:4}}>📈 ค่าใช้จ่าย/เดือน (บาท)</div>
+          <Chart data={sim} dataKey="monthly" color="#FB923C" h={160}/>
+        </div>
+      </>)}
+
+      {tab===2&&(<>
+        <div style={{background:'#0f1e35',border:'1px solid #1e3a5f',borderRadius:14,padding:'16px 14px',marginBottom:14}}>
+          <div style={{fontSize:11,color:'#475569',marginBottom:12}}>🗓 ช่วงชีวิตหลังเกษียณ</div>
+          <div style={{display:'flex',borderRadius:8,overflow:'hidden',height:32,marginBottom:12}}>
+            {PHASES.map(ph=>{
+              const s=Math.max(ph.range[0],retAge),e=Math.min(ph.range[1],101);
+              if(e<=retAge)return null;
+              const w=((e-s)/(101-retAge))*100;
+              return(
+                <div key={ph.id} style={{width:`${w}%`,background:ph.color,flexShrink:0,
+                  display:'flex',alignItems:'center',justifyContent:'center',
+                  fontSize:10,fontWeight:800,color:'#000'}}>{s}</div>
+              );
+            })}
+          </div>
+          <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
+            {PHASES.map(ph=>(
+              <div key={ph.id} style={{display:'flex',alignItems:'center',gap:5,fontSize:11}}>
+                <div style={{width:10,height:10,borderRadius:2,background:ph.color}}/>
+                <span style={{color:'#64748b'}}>{ph.th}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {PHASES.map(ph=>{
+          const s=Math.max(ph.range[0],retAge),e=Math.min(ph.range[1]-1,100);
+          if(e<retAge)return null;
+          const midYr=Math.round((s+e)/2)-retAge;
+          const expMo=Math.round(mo*ph.mul*Math.pow(1+iPct/100,Math.max(0,midYr)));
+          const simMid=sim.find(d=>d.age===Math.round((s+e)/2));
+          return(
+            <div key={ph.id} style={{background:ph.bg,border:`1px solid ${ph.color}44`,borderRadius:14,padding:16,marginBottom:12}}>
+              <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
+                <div>
+                  <div style={{color:ph.color,fontWeight:900,fontSize:16}}>{ph.th}</div>
+                  <div style={{color:'#334155',fontSize:12}}>อายุ {s}–{e} ปี · ×{ph.mul}</div>
+                </div>
+                <div style={{textAlign:'right'}}>
+                  <div style={{color:'#e2e8f0',fontWeight:900,fontSize:20}}>฿{fmtS(expMo)}</div>
+                  <div style={{color:'#334155',fontSize:11}}>/ เดือน</div>
+                </div>
+              </div>
+              <div style={{color:'#64748b',fontSize:12,marginBottom:10}}>{ph.desc}</div>
+              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
+                {[
+                  {l:'ต่อปี',         v:`฿${fmtS(expMo*12)}`,    c:'#e2e8f0'},
+                  {l:'เพิ่มจากฐาน',  v:`+${Math.round((ph.mul-1)*100)}%`, c:ph.color},
+                  {l:'พอร์ตกลางช่วง',v:simMid?`฿${fmtS(simMid.capital)}`:'หมดแล้ว',c:simMid?'#60A5FA':'#f06060'},
+                ].map(({l,v,c})=>(
+                  <div key={l} style={{background:'#00000030',borderRadius:8,padding:'8px 10px'}}>
+                    <div style={{color:'#334155',fontSize:10,marginBottom:3}}>{l}</div>
+                    <div style={{color:c,fontWeight:800,fontSize:13}}>{v}</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })}
+
+        <div style={{background:'#0f1e35',border:'1px solid #1e3a5f',borderRadius:14,padding:'16px 14px',marginTop:4}}>
+          <div style={{fontSize:10,color:'#334155',letterSpacing:2.5,textTransform:'uppercase',marginBottom:14}}>Checklist ก่อนเกษียณ</div>
+          {[
+            {e:'💰',cat:'การเงิน',c:'#FBBF24',items:[`เป้าหมาย ${fmtTHB(req)}`,'ปิดหนี้ทุกก้อน','passive income จากพอร์ต','เงินฉุกเฉิน 12 เดือน']},
+            {e:'🏥',cat:'สุขภาพ',c:'#34D399',items:['ประกันสุขภาพเอกชน','ตรวจสุขภาพประจำปี','รักษาฟัน/ตา/หูก่อนแก่','ออกกำลังกาย+อาหารดี']},
+            {e:'📋',cat:'กฎหมาย',c:'#C084FC',items:['พินัยกรรม','Power of Attorney','Living Will','วางแผนที่พักผู้สูงอายุ']},
+          ].map(({e,cat,c,items})=>(
+            <div key={cat} style={{marginBottom:16}}>
+              <div style={{color:c,fontWeight:800,fontSize:13,marginBottom:8}}>{e} {cat}</div>
+              {items.map(item=>(
+                <div key={item} style={{display:'flex',gap:8,padding:'6px 0',borderBottom:'1px solid #1e3a5f',color:'#94a3b8',fontSize:12}}>
+                  <span style={{color:'#34D399',flexShrink:0}}>✓</span>{item}
+                </div>
+              ))}
+            </div>
+          ))}
+        </div>
+      </>)}
+
+      </div>
+      <div style={{textAlign:'center',padding:'16px',color:'#1e3a5f',fontSize:10}}>
+        ข้อมูลเพื่อการศึกษา · ควรปรึกษานักวางแผนการเงินก่อนตัดสินใจ
+      </div>
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+
+<script>
+if('serviceWorker' in navigator){
+  window.addEventListener('load',()=>{
+    navigator.serviceWorker.register('sw.js')
+      .then(()=>console.log('SW ok'))
+      .catch(e=>console.warn('SW error',e));
+  });
+}
+</script>
+</body>
+</html>
