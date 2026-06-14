@@ -6,8 +6,8 @@
 <meta name="theme-color" content="#070f1e">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black">
-<meta name="apple-mobile-web-app-title" content="เกษียณ45">
-<title>แผนเกษียณ 45 🇹🇭</title>
+<meta name="apple-mobile-web-app-title" content="Retire45">
+<title>Retirement Planner 🇹🇭</title>
 <link rel="manifest" href="manifest.json">
 <link rel="apple-touch-icon" href="icon-192.svg">
 <script crossorigin src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
@@ -15,7 +15,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
-body{background:#070f1e;font-family:'Noto Sans Thai','Segoe UI',-apple-system,sans-serif;color:#e2e8f0;-webkit-font-smoothing:antialiased}
+body{background:#070f1e;font-family:'Noto Sans Thai','Noto Sans JP','Segoe UI',-apple-system,sans-serif;color:#e2e8f0;-webkit-font-smoothing:antialiased}
 input[type=range]{-webkit-appearance:none;appearance:none;width:100%;height:4px;border-radius:2px;background:#1e3a5f;outline:none;cursor:pointer}
 input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;appearance:none;width:22px;height:22px;border-radius:50%;background:#FBBF24;cursor:pointer;box-shadow:0 0 10px #FBBF2466}
 input[type=range]::-moz-range-thumb{width:22px;height:22px;border-radius:50%;background:#FBBF24;cursor:pointer;border:none}
@@ -28,346 +28,616 @@ button{font-family:inherit}
 <div id="root"></div>
 
 <script type="text/babel">
-const {useState,useMemo,useCallback,useRef} = React;
+const {useState,useMemo,useCallback,useRef,useEffect} = React;
 
-const PHASES = [
-  {id:0,th:'วัยสดใส',   range:[45,55], color:'#34D399',bg:'#022c22',mul:1.0,desc:'ท่องเที่ยว ทำงานอดิเรก ใช้ชีวิตเต็มที่'},
-  {id:1,th:'วัยปรับตัว',range:[55,65], color:'#FBBF24',bg:'#2d1900',mul:1.2,desc:'ลดกิจกรรม เน้นสุขภาพ ค่าแพทย์เริ่มเพิ่ม'},
-  {id:2,th:'วัยอาวุโส', range:[65,75], color:'#60A5FA',bg:'#0c1d3b',mul:1.5,desc:'ค่ารักษาพยาบาลสูงขึ้นมาก ดูแลตัวเอง'},
-  {id:3,th:'วัยพึ่งพา', range:[75,85], color:'#FB923C',bg:'#2a0d00',mul:2.0,desc:'ต้องการผู้ดูแล / Assisted Living'},
-  {id:4,th:'วัยดูแลเต็ม',range:[85,101],color:'#C084FC',bg:'#1a0a2e',mul:2.4,desc:'บ้านพักผู้สูงอายุเต็มรูปแบบ'},
+// ─────────────────────────────────────────────────────────────────────────
+// i18n
+// ─────────────────────────────────────────────────────────────────────────
+const I18N = {
+  th: {
+    locale: 'th-TH',
+    unitM: 'ล้าน', unitMShort: 'ล.', unitK: 'K',
+    eyebrow: 'Early Retirement Planner · Thailand 🇹🇭',
+    title: (age) => `เกษียณอายุ ${age} ปี · โสด`,
+    tagline: 'ปรับค่าด้านล่าง → เห็นผลทันที',
+    bannerOk: 'เงินพอถึง 100 ปี!',
+    bannerFail: (age, yrs) => `เงินหมดอายุ ${age} ปี — ขาด ${yrs} ปี`,
+    bannerOkSub: (amt) => `เกินเป้า ${amt} · พร้อมเกษียณ`,
+    bannerFailSub: (amt, save) => `ขาดอีก ${amt} · ออมเพิ่ม ${save}/เดือน`,
+    tabSetup: '⚙️ ตั้งค่า', tabResults: '📊 ผลลัพธ์', tabLife: '🗓 ชีวิต',
+    secPersonal: 'ข้อมูลส่วนตัว',
+    curAge: 'อายุปัจจุบัน',
+    retAge: 'อายุเกษียณเป้าหมาย',
+    yearsLeft: (n) => `เหลืออีก ${n} ปี`,
+    readyNow: 'เกษียณได้เลยตอนนี้!',
+    ageUnit: (v) => `${v} ปี`,
+    secExpense: 'ค่าใช้จ่ายและเงินออม',
+    monthlyExp: 'ค่าใช้จ่าย/เดือน (วันแรกที่เกษียณ)',
+    monthlyExpNote: 'ช่วง Go-Go 45–55 ปี (เพิ่มอัตโนมัติตามช่วงอายุ)',
+    savings: 'เงินออม/พอร์ตลงทุนปัจจุบัน',
+    secFinance: 'สมมติฐานการเงิน',
+    retReturn: 'ผลตอบแทนลงทุน/ปี',
+    retReturnNote: 'พอร์ตหุ้น+กองทุน ระยะยาว ~6–8%',
+    inflation: 'เงินเฟ้อไทย/ปี',
+    inflationNote: 'ค่าเฉลี่ยระยะยาวของไทย ~3%',
+    swr: 'Safe Withdrawal Rate (SWR)',
+    swrNote: 'เกษียณ 55+ ปี แนะนำ 3–3.5%',
+    realReturn: (r) => `Real Return: ${r}%`,
+    annualExp: (x) => `ค่าใช้จ่าย/ปี: ${x}`,
+    realReturnLabel: 'Real Return',
+    annualExpLabel: 'ค่าใช้จ่าย/ปี',
+    kpi1Label: 'เงินที่ต้องมี',
+    kpi1Sub: (swr, mo) => `SWR ${swr}% · ฿${mo}K/เดือน`,
+    kpi2LabelOk: 'เกินเป้า ✓', kpi2LabelFail: 'ยังขาด ✗',
+    kpi2SubOk: 'พร้อมเกษียณ',
+    kpi2SubFail: (x) => `ออมเพิ่ม ${x}/เดือน`,
+    kpi3Label: 'เงินหมดอายุ',
+    kpi3ValueOk: 'ไม่หมด 🎉',
+    kpi3ValueFail: (age) => `${age} ปี`,
+    kpi3SubOk: 'พอถึง 100 ปี',
+    kpi3SubFail: (n) => `ขาด ${n} ปี`,
+    kpi4Label: 'Real Return/ปี',
+    kpi4Sub: (r, i) => `${r}% − ${i}% เงินเฟ้อ`,
+    chart1Title: (a, b) => `💰 มูลค่าพอร์ต · อายุ ${a}–${b} ปี`,
+    chart2Title: '📈 ค่าใช้จ่าย/เดือน (บาท)',
+    perMonth: '/เดือน',
+    tooltipAge: (age, phase) => `อายุ ${age} ปี · ${phase}`,
+    lifeSectionTitle: '🗓 ช่วงชีวิตหลังเกษียณ',
+    phases: [
+      { th: 'วัยสดใส',    desc: 'ท่องเที่ยว ทำงานอดิเรก ใช้ชีวิตเต็มที่' },
+      { th: 'วัยปรับตัว', desc: 'ลดกิจกรรม เน้นสุขภาพ ค่าแพทย์เริ่มเพิ่ม' },
+      { th: 'วัยอาวุโส',  desc: 'ค่ารักษาพยาบาลสูงขึ้นมาก ดูแลตัวเอง' },
+      { th: 'วัยพึ่งพา',  desc: 'ต้องการผู้ดูแล / Assisted Living' },
+      { th: 'วัยดูแลเต็ม',desc: 'บ้านพักผู้สูงอายุเต็มรูปแบบ' },
+    ],
+    ageRange: (s, e, m) => `อายุ ${s}–${e} ปี · ×${m}`,
+    perYear: 'ต่อปี', vsBase: 'เพิ่มจากฐาน', midPortfolio: 'พอร์ตกลางช่วง', depleted: 'หมดแล้ว',
+    perMonthShort: '/ เดือน',
+    checklistTitle: 'Checklist ก่อนเกษียณ',
+    catFinance: 'การเงิน', catHealth: 'สุขภาพ', catLegal: 'กฎหมาย',
+    itemsFinance: (req) => [
+      `เป้าหมาย ${req}`, 'ปิดหนี้ทุกก้อน', 'passive income จากพอร์ต', 'เงินฉุกเฉิน 12 เดือน',
+    ],
+    itemsHealth: ['ประกันสุขภาพเอกชน', 'ตรวจสุขภาพประจำปี', 'รักษาฟัน/ตา/หูก่อนแก่', 'ออกกำลังกาย+อาหารดี'],
+    itemsLegal: ['พินัยกรรม', 'Power of Attorney', 'Living Will', 'วางแผนที่พักผู้สูงอายุ'],
+    footer: 'ข้อมูลเพื่อการศึกษา · ควรปรึกษานักวางแผนการเงินก่อนตัดสินใจ',
+  },
+
+  en: {
+    locale: 'en-US',
+    unitM: 'M', unitMShort: 'M', unitK: 'K',
+    eyebrow: 'Early Retirement Planner · Thailand 🇹🇭',
+    title: (age) => `Retire at ${age} · Single`,
+    tagline: 'Adjust the values below → see results instantly',
+    bannerOk: 'Your money lasts to 100!',
+    bannerFail: (age, yrs) => `Funds run out at age ${age} — ${yrs} years short`,
+    bannerOkSub: (amt) => `${amt} above target · Ready to retire`,
+    bannerFailSub: (amt, save) => `Short by ${amt} · Save ${save}/month more`,
+    tabSetup: '⚙️ Setup', tabResults: '📊 Results', tabLife: '🗓 Life',
+    secPersonal: 'Personal Info',
+    curAge: 'Current age',
+    retAge: 'Target retirement age',
+    yearsLeft: (n) => `${n} years to go`,
+    readyNow: 'Ready to retire now!',
+    ageUnit: (v) => `${v} yrs`,
+    secExpense: 'Expenses & Savings',
+    monthlyExp: 'Monthly expenses (at retirement)',
+    monthlyExpNote: 'Go-Go phase, age 45–55 (auto-adjusts by age)',
+    savings: 'Current savings / portfolio',
+    secFinance: 'Financial Assumptions',
+    retReturn: 'Annual investment return',
+    retReturnNote: 'Long-term stock/fund portfolio ~6–8%',
+    inflation: 'Thailand inflation / year',
+    inflationNote: "Thailand's long-term average ~3%",
+    swr: 'Safe Withdrawal Rate (SWR)',
+    swrNote: 'For 55+ year retirements, 3–3.5% is recommended',
+    realReturn: (r) => `Real return: ${r}%`,
+    annualExp: (x) => `Annual expenses: ${x}`,
+    realReturnLabel: 'Real return',
+    annualExpLabel: 'Annual expenses',
+    kpi1Label: 'Target nest egg',
+    kpi1Sub: (swr, mo) => `SWR ${swr}% · ฿${mo}K/month`,
+    kpi2LabelOk: 'Above target ✓', kpi2LabelFail: 'Below target ✗',
+    kpi2SubOk: 'Ready to retire',
+    kpi2SubFail: (x) => `Save ${x}/month more`,
+    kpi3Label: 'Funds run out at',
+    kpi3ValueOk: 'Never 🎉',
+    kpi3ValueFail: (age) => `Age ${age}`,
+    kpi3SubOk: 'Lasts to 100',
+    kpi3SubFail: (n) => `${n} years short`,
+    kpi4Label: 'Real return / year',
+    kpi4Sub: (r, i) => `${r}% − ${i}% inflation`,
+    chart1Title: (a, b) => `💰 Portfolio value · Age ${a}–${b}`,
+    chart2Title: '📈 Monthly expenses (THB)',
+    perMonth: '/month',
+    tooltipAge: (age, phase) => `Age ${age} · ${phase}`,
+    lifeSectionTitle: '🗓 Life phases after retirement',
+    phases: [
+      { th: 'Go-Go Years',   desc: 'Travel, hobbies, living life fully' },
+      { th: 'Slow-Go Years', desc: 'Slower pace, health focus, medical costs rise' },
+      { th: 'Senior Years',  desc: 'Medical costs rise significantly, self-care' },
+      { th: 'Support Years', desc: 'Needs a caregiver / assisted living' },
+      { th: 'Full Care Years', desc: 'Full-time nursing care' },
+    ],
+    ageRange: (s, e, m) => `Age ${s}–${e} · ×${m}`,
+    perYear: 'Per year', vsBase: 'vs base', midPortfolio: 'Portfolio (mid-phase)', depleted: 'Depleted',
+    perMonthShort: '/ month',
+    checklistTitle: 'Pre-Retirement Checklist',
+    catFinance: 'Finance', catHealth: 'Health', catLegal: 'Legal',
+    itemsFinance: (req) => [
+      `Target: ${req}`, 'Pay off all debts', 'Passive income from portfolio', '12-month emergency fund',
+    ],
+    itemsHealth: ['Private health insurance', 'Annual health checkups', 'Dental/eye/ear care before aging', 'Exercise + healthy diet'],
+    itemsLegal: ['Will / testament', 'Power of attorney', 'Living will', 'Plan senior living arrangements'],
+    footer: 'For educational purposes only · Consult a financial planner before deciding',
+  },
+
+  ja: {
+    locale: 'ja-JP',
+    unitM: 'M', unitMShort: 'M', unitK: 'K',
+    eyebrow: 'Early Retirement Planner · Thailand 🇹🇭',
+    title: (age) => `${age}歳でリタイア・独身`,
+    tagline: '下の値を調整 → 結果がすぐ反映されます',
+    bannerOk: '資金は100歳まで持ちます！',
+    bannerFail: (age, yrs) => `${age}歳で資金が尽きます — ${yrs}年不足`,
+    bannerOkSub: (amt) => `目標を${amt}上回っています・リタイア準備完了`,
+    bannerFailSub: (amt, save) => `${amt}不足・あと${save}/月の積立が必要`,
+    tabSetup: '⚙️ 設定', tabResults: '📊 結果', tabLife: '🗓 人生',
+    secPersonal: '基本情報',
+    curAge: '現在の年齢',
+    retAge: 'リタイア目標年齢',
+    yearsLeft: (n) => `残り${n}年`,
+    readyNow: '今すぐリタイア可能！',
+    ageUnit: (v) => `${v}歳`,
+    secExpense: '支出と資産',
+    monthlyExp: '月間支出（リタイア時）',
+    monthlyExpNote: 'Go-Go期 45〜55歳（年齢により自動調整）',
+    savings: '現在の資産・ポートフォリオ',
+    secFinance: '資産運用の前提',
+    retReturn: '年間投資リターン',
+    retReturnNote: '株式・ファンドの長期平均 ~6〜8%',
+    inflation: 'タイのインフレ率／年',
+    inflationNote: 'タイの長期平均 ~3%',
+    swr: 'Safe Withdrawal Rate（SWR）',
+    swrNote: '55年以上のリタイアには3〜3.5%を推奨',
+    realReturn: (r) => `実質リターン：${r}%`,
+    annualExp: (x) => `年間支出：${x}`,
+    realReturnLabel: '実質リターン',
+    annualExpLabel: '年間支出',
+    kpi1Label: '必要な資産額',
+    kpi1Sub: (swr, mo) => `SWR ${swr}% · ฿${mo}K/月`,
+    kpi2LabelOk: '目標達成 ✓', kpi2LabelFail: '目標未達 ✗',
+    kpi2SubOk: 'リタイア準備完了',
+    kpi2SubFail: (x) => `あと${x}/月`,
+    kpi3Label: '資金が尽きる年齢',
+    kpi3ValueOk: '尽きません 🎉',
+    kpi3ValueFail: (age) => `${age}歳`,
+    kpi3SubOk: '100歳まで持続',
+    kpi3SubFail: (n) => `${n}年不足`,
+    kpi4Label: '実質リターン／年',
+    kpi4Sub: (r, i) => `${r}% − ${i}%（インフレ）`,
+    chart1Title: (a, b) => `💰 資産残高・${a}〜${b}歳`,
+    chart2Title: '📈 月間支出（バーツ）',
+    perMonth: '/月',
+    tooltipAge: (age, phase) => `${age}歳・${phase}`,
+    lifeSectionTitle: '🗓 リタイア後の人生フェーズ',
+    phases: [
+      { th: 'アクティブ期', desc: '旅行、趣味、充実した生活' },
+      { th: '調整期',     desc: 'ペースを落とし健康重視、医療費が増加' },
+      { th: 'シニア期',   desc: '医療費が大きく増加、自己管理が中心' },
+      { th: 'サポート期', desc: '介護者・介護施設が必要' },
+      { th: '介護期',     desc: 'フルタイムの介護施設' },
+    ],
+    ageRange: (s, e, m) => `${s}〜${e}歳・×${m}`,
+    perYear: '年間', vsBase: '基準から', midPortfolio: '期間中央の資産', depleted: '枯渇',
+    perMonthShort: '/ 月',
+    checklistTitle: 'リタイア前チェックリスト',
+    catFinance: '資金', catHealth: '健康', catLegal: '法律',
+    itemsFinance: (req) => [
+      `目標：${req}`, 'すべての負債を完済', 'ポートフォリオからのパッシブインカム', '12ヵ月分の緊急資金',
+    ],
+    itemsHealth: ['民間医療保険', '毎年の健康診断', '老化前の歯・目・耳のケア', '運動と健康的な食事'],
+    itemsLegal: ['遺言書', '委任状（Power of Attorney）', 'リビングウィル（医療に関する意思表示）', '高齢者向け住居の計画'],
+    footer: '教育目的の情報です・意思決定前にファイナンシャルプランナーにご相談ください',
+  },
+};
+
+const PHASE_DEF = [
+  { id:0, range:[45,55],  color:'#34D399', bg:'#022c22', mul:1.0 },
+  { id:1, range:[55,65],  color:'#FBBF24', bg:'#2d1900', mul:1.2 },
+  { id:2, range:[65,75],  color:'#60A5FA', bg:'#0c1d3b', mul:1.5 },
+  { id:3, range:[75,85],  color:'#FB923C', bg:'#2a0d00', mul:2.0 },
+  { id:4, range:[85,101], color:'#C084FC', bg:'#1a0a2e', mul:2.4 },
 ];
 
-const fmtS = v=>{const n=Math.abs(v);if(n>=1e6)return`${(v/1e6).toFixed(1)}ล.`;if(n>=1e3)return`${Math.round(v/1e3)}K`;return`${Math.round(v)}`;};
-const fmtTHB = v=>{if(Math.abs(v)>=1e6)return`฿${(v/1e6).toFixed(2)} ล้าน`;return`฿${Math.round(v).toLocaleString('th-TH')}`;};
+// ─────────────────────────────────────────────────────────────────────────
+// helpers
+// ─────────────────────────────────────────────────────────────────────────
+const fmtS = (v, t) => {
+  const n = Math.abs(v);
+  if (n >= 1e6) return `${(v / 1e6).toFixed(1)}${t.unitMShort}`;
+  if (n >= 1e3) return `${Math.round(v / 1e3)}${t.unitK}`;
+  return `${Math.round(v)}`;
+};
+const fmtTHB = (v, t) => {
+  if (Math.abs(v) >= 1e6) return `฿${(v / 1e6).toFixed(2)}${t.unitM === 'M' ? 'M' : ' ' + t.unitM}`;
+  return `฿${Math.round(v).toLocaleString(t.locale)}`;
+};
 
-function Chart({data,dataKey,color,h=190}){
-  const [hover,setHover]=useState(null);
-  const svgRef=useRef(null);
-  if(!data||!data.length)return null;
-  const W=300,H=h,pL=46,pR=8,pT=8,pB=26,cW=W-pL-pR,cH=H-pT-pB;
-  const vals=data.map(d=>d[dataKey]);
-  const maxV=Math.max(...vals)||1;
-  const xs=i=>pL+(i/(data.length-1||1))*cW;
-  const ys=v=>pT+cH-(v/maxV)*cH;
-  const pts=data.map((d,i)=>`${xs(i)},${ys(d[dataKey])}`).join(' L ');
-  const yTicks=[0,.25,.5,.75,1].map(t=>({v:maxV*t,y:pT+cH*(1-t)}));
-  const xLbls=data.filter((d,i)=>d.age%10===0||i===0||i===data.length-1);
-  const onMove=useCallback(e=>{
-    if(!svgRef.current)return;
-    const rect=svgRef.current.getBoundingClientRect();
-    const cx=(e.touches?e.touches[0].clientX:e.clientX)-rect.left;
-    const idx=Math.max(0,Math.min(data.length-1,Math.round((cx/rect.width*W-pL)/cW*(data.length-1))));
+// ─────────────────────────────────────────────────────────────────────────
+// Chart (lightweight SVG, no deps)
+// ─────────────────────────────────────────────────────────────────────────
+function Chart({ data, dataKey, color, h = 190, t }) {
+  const [hover, setHover] = useState(null);
+  const svgRef = useRef(null);
+  if (!data || !data.length) return null;
+  const W = 300, H = h, pL = 46, pR = 8, pT = 8, pB = 26, cW = W - pL - pR, cH = H - pT - pB;
+  const vals = data.map(d => d[dataKey]);
+  const maxV = Math.max(...vals) || 1;
+  const xs = i => pL + (i / (data.length - 1 || 1)) * cW;
+  const ys = v => pT + cH - (v / maxV) * cH;
+  const pts = data.map((d, i) => `${xs(i)},${ys(d[dataKey])}`).join(' L ');
+  const yTicks = [0, .25, .5, .75, 1].map(tt => ({ v: maxV * tt, y: pT + cH * (1 - tt) }));
+  const xLbls = data.filter((d, i) => d.age % 10 === 0 || i === 0 || i === data.length - 1);
+  const onMove = useCallback(e => {
+    if (!svgRef.current) return;
+    const rect = svgRef.current.getBoundingClientRect();
+    const cx = (e.touches ? e.touches[0].clientX : e.clientX) - rect.left;
+    const idx = Math.max(0, Math.min(data.length - 1, Math.round((cx / rect.width * W - pL) / cW * (data.length - 1))));
     setHover(idx);
-  },[data.length]);
-  const hd=hover!==null?data[hover]:null;
-  return(
-    <div style={{position:'relative'}}>
-      <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} style={{width:'100%',display:'block',cursor:'crosshair'}}
+  }, [data.length]);
+  const hd = hover !== null ? data[hover] : null;
+  return (
+    <div style={{ position: 'relative' }}>
+      <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} style={{ width: '100%', display: 'block', cursor: 'crosshair' }}
         onMouseMove={onMove} onTouchMove={onMove}
-        onMouseLeave={()=>setHover(null)} onTouchEnd={()=>setHover(null)}>
+        onMouseLeave={() => setHover(null)} onTouchEnd={() => setHover(null)}>
         <defs>
           <linearGradient id={`g${dataKey}`} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor={color} stopOpacity=".4"/>
-            <stop offset="100%" stopColor={color} stopOpacity=".02"/>
+            <stop offset="0%" stopColor={color} stopOpacity=".4" />
+            <stop offset="100%" stopColor={color} stopOpacity=".02" />
           </linearGradient>
         </defs>
-        {yTicks.map((t,i)=>(
+        {yTicks.map((tk, i) => (
           <g key={i}>
-            <line x1={pL} y1={t.y} x2={W-pR} y2={t.y} stroke="#1a2d45" strokeDasharray="3 3"/>
-            <text x={pL-4} y={t.y+4} textAnchor="end" fill="#334155" fontSize="9">{fmtS(t.v)}</text>
+            <line x1={pL} y1={tk.y} x2={W - pR} y2={tk.y} stroke="#1a2d45" strokeDasharray="3 3" />
+            <text x={pL - 4} y={tk.y + 4} textAnchor="end" fill="#334155" fontSize="9">{fmtS(tk.v, t)}</text>
           </g>
         ))}
-        <path d={`M ${pts} L ${xs(data.length-1)},${pT+cH} L ${pL},${pT+cH} Z`} fill={`url(#g${dataKey})`}/>
-        <path d={`M ${pts}`} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
-        {xLbls.map((d,i)=>{
-          const idx=data.findIndex(x=>x.age===d.age);
-          return <text key={i} x={xs(idx)} y={H-4} textAnchor="middle" fill="#334155" fontSize="9">{d.age}</text>;
+        <path d={`M ${pts} L ${xs(data.length - 1)},${pT + cH} L ${pL},${pT + cH} Z`} fill={`url(#g${dataKey})`} />
+        <path d={`M ${pts}`} fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+        {xLbls.map((d, i) => {
+          const idx = data.findIndex(x => x.age === d.age);
+          return <text key={i} x={xs(idx)} y={H - 4} textAnchor="middle" fill="#334155" fontSize="9">{d.age}</text>;
         })}
-        {hover!==null&&hd&&(<>
-          <line x1={xs(hover)} y1={pT} x2={xs(hover)} y2={pT+cH} stroke={color} strokeWidth="1" strokeDasharray="4 3" opacity=".6"/>
-          <circle cx={xs(hover)} cy={ys(hd[dataKey])} r="4" fill={color} stroke="#070f1e" strokeWidth="2"/>
+        {hover !== null && hd && (<>
+          <line x1={xs(hover)} y1={pT} x2={xs(hover)} y2={pT + cH} stroke={color} strokeWidth="1" strokeDasharray="4 3" opacity=".6" />
+          <circle cx={xs(hover)} cy={ys(hd[dataKey])} r="4" fill={color} stroke="#070f1e" strokeWidth="2" />
         </>)}
       </svg>
-      {hd&&(
+      {hd && (
         <div style={{
-          position:'absolute',top:6,
-          left:hover>data.length*.6?'auto':`calc(${(xs(hover)/W)*100}% + 6px)`,
-          right:hover>data.length*.6?`calc(${((W-xs(hover))/W)*100}% + 6px)`:'auto',
-          background:'#060d1c',border:'1px solid #1e3a5f',borderRadius:8,
-          padding:'7px 10px',fontSize:12,pointerEvents:'none',zIndex:10,whiteSpace:'nowrap',
+          position: 'absolute', top: 6,
+          left: hover > data.length * .6 ? 'auto' : `calc(${(xs(hover) / W) * 100}% + 6px)`,
+          right: hover > data.length * .6 ? `calc(${((W - xs(hover)) / W) * 100}% + 6px)` : 'auto',
+          background: '#060d1c', border: '1px solid #1e3a5f', borderRadius: 8,
+          padding: '7px 10px', fontSize: 12, pointerEvents: 'none', zIndex: 10, whiteSpace: 'nowrap',
         }}>
-          <div style={{color,fontWeight:800,marginBottom:2}}>อายุ {hd.age} ปี · {hd.ph}</div>
-          <div style={{color:'#e2e8f0'}}>{fmtTHB(hd[dataKey])}</div>
+          <div style={{ color, fontWeight: 800, marginBottom: 2 }}>{t.tooltipAge(hd.age, hd.ph)}</div>
+          <div style={{ color: '#e2e8f0' }}>{fmtTHB(hd[dataKey], t)}</div>
         </div>
       )}
     </div>
   );
 }
 
-function Slider({label,value,min,max,step,onChange,display,note}){
-  return(
-    <div style={{marginBottom:20}}>
-      <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
-        <span style={{color:'#94a3b8',fontSize:13}}>{label}</span>
-        <span style={{color:'#FBBF24',fontWeight:800,fontSize:15}}>{display(value)}</span>
+// ─────────────────────────────────────────────────────────────────────────
+// UI primitives
+// ─────────────────────────────────────────────────────────────────────────
+function Slider({ label, value, min, max, step, onChange, display, note }) {
+  return (
+    <div style={{ marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+        <span style={{ color: '#94a3b8', fontSize: 13 }}>{label}</span>
+        <span style={{ color: '#FBBF24', fontWeight: 800, fontSize: 15 }}>{display(value)}</span>
       </div>
-      <input type="range" min={min} max={max} step={step} value={value} onChange={e=>onChange(Number(e.target.value))}/>
-      {note&&<div style={{color:'#334155',fontSize:11,marginTop:5}}>{note}</div>}
+      <input type="range" min={min} max={max} step={step} value={value} onChange={e => onChange(Number(e.target.value))} />
+      {note && <div style={{ color: '#334155', fontSize: 11, marginTop: 5 }}>{note}</div>}
     </div>
   );
 }
 
-function Kpi({label,value,sub,color='#e2e8f0',border='#1e3a5f',bg='#0f1e35'}){
-  return(
-    <div style={{background:bg,border:`1px solid ${border}`,borderRadius:12,padding:'13px 14px'}}>
-      <div style={{color:'#475569',fontSize:11,marginBottom:5,lineHeight:1.3}}>{label}</div>
-      <div style={{color,fontSize:17,fontWeight:900,lineHeight:1.2}}>{value}</div>
-      {sub&&<div style={{color:'#334155',fontSize:11,marginTop:4}}>{sub}</div>}
+function Kpi({ label, value, sub, color = '#e2e8f0', border = '#1e3a5f', bg = '#0f1e35' }) {
+  return (
+    <div style={{ background: bg, border: `1px solid ${border}`, borderRadius: 12, padding: '13px 14px' }}>
+      <div style={{ color: '#475569', fontSize: 11, marginBottom: 5, lineHeight: 1.3 }}>{label}</div>
+      <div style={{ color, fontSize: 17, fontWeight: 900, lineHeight: 1.2 }}>{value}</div>
+      {sub && <div style={{ color: '#334155', fontSize: 11, marginTop: 4 }}>{sub}</div>}
     </div>
   );
 }
 
-function TabBtn({label,active,onClick}){
-  return(
+function TabBtn({ label, active, onClick }) {
+  return (
     <button onClick={onClick} style={{
-      flex:1,padding:'10px 2px',
-      background:active?'#FBBF24':'transparent',
-      color:active?'#000':'#475569',
-      border:'none',borderRadius:8,
-      fontWeight:active?800:500,fontSize:12,cursor:'pointer',
+      flex: 1, padding: '10px 2px',
+      background: active ? '#FBBF24' : 'transparent',
+      color: active ? '#000' : '#475569',
+      border: 'none', borderRadius: 8,
+      fontWeight: active ? 800 : 500, fontSize: 12, cursor: 'pointer',
     }}>{label}</button>
   );
 }
 
-function Sec({title,children}){
-  return(
-    <div style={{background:'#0f1e35',border:'1px solid #1e3a5f',borderRadius:14,padding:'18px 16px',marginBottom:14}}>
-      <div style={{fontSize:10,color:'#334155',letterSpacing:2.5,textTransform:'uppercase',marginBottom:18}}>{title}</div>
+function LangBtn({ label, active, onClick }) {
+  return (
+    <button onClick={onClick} style={{
+      padding: '5px 10px',
+      background: active ? '#FBBF24' : '#0f1e35',
+      color: active ? '#000' : '#64748b',
+      border: `1px solid ${active ? '#FBBF24' : '#1e3a5f'}`,
+      borderRadius: 7,
+      fontWeight: active ? 800 : 600, fontSize: 11, cursor: 'pointer',
+    }}>{label}</button>
+  );
+}
+
+function Sec({ title, children }) {
+  return (
+    <div style={{ background: '#0f1e35', border: '1px solid #1e3a5f', borderRadius: 14, padding: '18px 16px', marginBottom: 14 }}>
+      <div style={{ fontSize: 10, color: '#334155', letterSpacing: 2.5, textTransform: 'uppercase', marginBottom: 18 }}>{title}</div>
       {children}
     </div>
   );
 }
 
-function App(){
-  const [tab,  setTab] = useState(0);
-  const [curAge,setCur]= useState(35);
-  const [retAge,setRet]= useState(45);
-  const [mo,   setMo]  = useState(50000);
-  const [sav,  setSav] = useState(5000000);
-  const [rPct, setRP]  = useState(6);
-  const [iPct, setIP]  = useState(3);
-  const [swr,  setSwr] = useState(3.5);
+// ─────────────────────────────────────────────────────────────────────────
+// App
+// ─────────────────────────────────────────────────────────────────────────
+function App() {
+  const [lang, setLang] = useState(() => {
+    try {
+      const saved = localStorage.getItem('retire45-lang');
+      if (saved && I18N[saved]) return saved;
+      const nav = (navigator.language || 'th').toLowerCase();
+      if (nav.startsWith('ja')) return 'ja';
+      if (nav.startsWith('en')) return 'en';
+    } catch (e) {}
+    return 'th';
+  });
+  useEffect(() => { try { localStorage.setItem('retire45-lang', lang); } catch (e) {} }, [lang]);
+  const t = I18N[lang];
 
-  const base=mo*12, req=base/(swr/100), gap=sav-req;
-  const realR=((1+rPct/100)/(1+iPct/100)-1)*100;
-  const yL=Math.max(0,retAge-curAge);
-  const r=rPct/100/12,n=yL*12,FV=Math.max(0,-gap);
-  const needSave=FV>0&&n>0?(FV*r)/(Math.pow(1+r,n)-1):0;
+  const [tab, setTab]   = useState(0);
+  const [curAge, setCur] = useState(35);
+  const [retAge, setRet] = useState(45);
+  const [mo, setMo]     = useState(50000);
+  const [sav, setSav]   = useState(5000000);
+  const [rPct, setRP]   = useState(6);
+  const [iPct, setIP]   = useState(3);
+  const [swr, setSwr]   = useState(3.5);
 
-  const sim=useMemo(()=>{
-    const out=[];let cap=sav;
-    for(let age=retAge;age<=100;age++){
-      const ph=PHASES.find(p=>age>=p.range[0]&&age<p.range[1])??PHASES[4];
-      const yr=age-retAge;
-      const exp=base*ph.mul*Math.pow(1+iPct/100,yr);
-      cap=cap*(1+rPct/100)-exp;
-      out.push({age,ph:ph.th,capital:Math.max(0,Math.round(cap)),monthly:Math.round(exp/12),gone:cap<=0});
-      if(cap<=0)break;
+  const base = mo * 12, req = base / (swr / 100), gap = sav - req;
+  const realR = ((1 + rPct / 100) / (1 + iPct / 100) - 1) * 100;
+  const yL = Math.max(0, retAge - curAge);
+  const r = rPct / 100 / 12, n = yL * 12, FV = Math.max(0, -gap);
+  const needSave = FV > 0 && n > 0 ? (FV * r) / (Math.pow(1 + r, n) - 1) : 0;
+
+  const sim = useMemo(() => {
+    const out = []; let cap = sav;
+    for (let age = retAge; age <= 100; age++) {
+      const pd = PHASE_DEF.find(p => age >= p.range[0] && age < p.range[1]) ?? PHASE_DEF[4];
+      const ph = t.phases[pd.id];
+      const yr = age - retAge;
+      const exp = base * pd.mul * Math.pow(1 + iPct / 100, yr);
+      cap = cap * (1 + rPct / 100) - exp;
+      out.push({ age, ph: ph.th, capital: Math.max(0, Math.round(cap)), monthly: Math.round(exp / 12), gone: cap <= 0 });
+      if (cap <= 0) break;
     }
     return out;
-  },[retAge,mo,sav,rPct,iPct,base]);
+  }, [retAge, mo, sav, rPct, iPct, base, lang]);
 
-  const goneAt=sim.find(d=>d.gone)?.age;
-  const ok=!goneAt;
+  const goneAt = sim.find(d => d.gone)?.age;
+  const ok = !goneAt;
 
-  return(
-    <div style={{minHeight:'100vh',paddingBottom:24}}>
+  return (
+    <div style={{ minHeight: '100vh', paddingBottom: 24 }}>
       {/* Header */}
-      <div style={{padding:'20px 16px 14px',background:'linear-gradient(160deg,#0c1a32,#0a2040)',borderBottom:'1px solid #1e3a5f'}}>
-        <div style={{fontSize:9,letterSpacing:3.5,color:'#FBBF24',textTransform:'uppercase',marginBottom:5}}>Early Retirement Planner · Thailand 🇹🇭</div>
-        <h1 style={{fontSize:22,fontWeight:900}}>เกษียณอายุ {retAge} ปี · โสด</h1>
-        <p style={{color:'#334155',fontSize:12,marginTop:4}}>ปรับค่าด้านล่าง → เห็นผลทันที</p>
+      <div style={{ padding: '20px 16px 14px', background: 'linear-gradient(160deg,#0c1a32,#0a2040)', borderBottom: '1px solid #1e3a5f' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 5 }}>
+          <div style={{ fontSize: 9, letterSpacing: 3.5, color: '#FBBF24', textTransform: 'uppercase', maxWidth: '70%' }}>{t.eyebrow}</div>
+          <div style={{ display: 'flex', gap: 5 }}>
+            <LangBtn label="TH" active={lang === 'th'} onClick={() => setLang('th')} />
+            <LangBtn label="EN" active={lang === 'en'} onClick={() => setLang('en')} />
+            <LangBtn label="JP" active={lang === 'ja'} onClick={() => setLang('ja')} />
+          </div>
+        </div>
+        <h1 style={{ fontSize: 22, fontWeight: 900 }}>{t.title(retAge)}</h1>
+        <p style={{ color: '#334155', fontSize: 12, marginTop: 4 }}>{t.tagline}</p>
       </div>
 
       {/* Banner */}
-      <div style={{margin:'14px 14px 0',padding:'12px 14px',borderRadius:12,
-        background:ok?'#021a12':'#1f0606',border:`1px solid ${ok?'#34D399':'#f06060'}`,
-        display:'flex',alignItems:'center',gap:12}}>
-        <span style={{fontSize:26}}>{ok?'✅':'⚠️'}</span>
-        <div style={{flex:1}}>
-          <div style={{color:ok?'#34D399':'#f06060',fontWeight:800,fontSize:14}}>
-            {ok?'เงินพอถึง 100 ปี!':`เงินหมดอายุ ${goneAt} ปี — ขาด ${100-goneAt} ปี`}
+      <div style={{
+        margin: '14px 14px 0', padding: '12px 14px', borderRadius: 12,
+        background: ok ? '#021a12' : '#1f0606', border: `1px solid ${ok ? '#34D399' : '#f06060'}`,
+        display: 'flex', alignItems: 'center', gap: 12,
+      }}>
+        <span style={{ fontSize: 26 }}>{ok ? '✅' : '⚠️'}</span>
+        <div style={{ flex: 1 }}>
+          <div style={{ color: ok ? '#34D399' : '#f06060', fontWeight: 800, fontSize: 14 }}>
+            {ok ? t.bannerOk : t.bannerFail(goneAt, 100 - goneAt)}
           </div>
-          <div style={{color:'#334155',fontSize:11,marginTop:2}}>
-            {gap>=0?`เกินเป้า ${fmtTHB(gap)} · พร้อมเกษียณ`:`ขาดอีก ${fmtTHB(Math.abs(gap))} · ออมเพิ่ม ${fmtTHB(needSave)}/เดือน`}
+          <div style={{ color: '#334155', fontSize: 11, marginTop: 2 }}>
+            {gap >= 0 ? t.bannerOkSub(fmtTHB(gap, t)) : t.bannerFailSub(fmtTHB(Math.abs(gap), t), fmtTHB(needSave, t))}
           </div>
         </div>
       </div>
 
       {/* Tabs */}
-      <div style={{margin:'14px 14px',display:'flex',gap:4,padding:4,background:'#0f1e35',borderRadius:12,border:'1px solid #1e3a5f'}}>
-        {['⚙️ ตั้งค่า','📊 ผลลัพธ์','🗓 ชีวิต'].map((l,i)=>(
-          <TabBtn key={i} label={l} active={tab===i} onClick={()=>setTab(i)}/>
-        ))}
+      <div style={{ margin: '14px 14px', display: 'flex', gap: 4, padding: 4, background: '#0f1e35', borderRadius: 12, border: '1px solid #1e3a5f' }}>
+        <TabBtn label={t.tabSetup}   active={tab === 0} onClick={() => setTab(0)} />
+        <TabBtn label={t.tabResults} active={tab === 1} onClick={() => setTab(1)} />
+        <TabBtn label={t.tabLife}    active={tab === 2} onClick={() => setTab(2)} />
       </div>
 
-      <div style={{padding:'0 14px'}}>
+      <div style={{ padding: '0 14px' }}>
 
-      {tab===0&&(<>
-        <Sec title="ข้อมูลส่วนตัว">
-          <Slider label="อายุปัจจุบัน" value={curAge} min={20} max={65} step={1}
-            onChange={v=>{setCur(v);if(v>=retAge)setRet(v+1);}} display={v=>`${v} ปี`}/>
-          <Slider label="อายุเกษียณเป้าหมาย" value={retAge} min={35} max={70} step={1}
-            onChange={v=>setRet(Math.max(v,curAge+1))} display={v=>`${v} ปี`}
-            note={yL>0?`เหลืออีก ${yL} ปี`:'เกษียณได้เลยตอนนี้!'}/>
-        </Sec>
-        <Sec title="ค่าใช้จ่ายและเงินออม">
-          <Slider label="ค่าใช้จ่าย/เดือน (วันแรกที่เกษียณ)" value={mo} min={20000} max={200000} step={5000}
-            onChange={setMo} display={v=>`฿${(v/1000).toFixed(0)}K`}
-            note="ช่วง Go-Go 45–55 ปี (เพิ่มอัตโนมัติตามช่วงอายุ)"/>
-          <Slider label="เงินออม/พอร์ตลงทุนปัจจุบัน" value={sav} min={0} max={50000000} step={500000}
-            onChange={setSav} display={v=>v>=1e6?`฿${(v/1e6).toFixed(1)} ล้าน`:`฿${(v/1e3).toFixed(0)}K`}/>
-        </Sec>
-        <Sec title="สมมติฐานการเงิน">
-          <Slider label="ผลตอบแทนลงทุน/ปี" value={rPct} min={2} max={12} step={0.5}
-            onChange={setRP} display={v=>`${v}%`} note="พอร์ตหุ้น+กองทุน ระยะยาว ~6–8%"/>
-          <Slider label="เงินเฟ้อไทย/ปี" value={iPct} min={1} max={7} step={0.5}
-            onChange={setIP} display={v=>`${v}%`} note="ค่าเฉลี่ยระยะยาวของไทย ~3%"/>
-          <Slider label="Safe Withdrawal Rate (SWR)" value={swr} min={2.5} max={5} step={0.5}
-            onChange={setSwr} display={v=>`${v}%`} note="เกษียณ 55+ ปี แนะนำ 3–3.5%"/>
-          <div style={{background:'#060d1c',borderRadius:8,padding:'10px 12px',fontSize:12,color:'#475569'}}>
-            💡 Real Return: <b style={{color:'#60A5FA'}}>{realR.toFixed(1)}%</b>
-            {'  ·  '}ค่าใช้จ่าย/ปี: <b style={{color:'#FBBF24'}}>{fmtTHB(base)}</b>
-          </div>
-        </Sec>
-      </>)}
-
-      {tab===1&&(<>
-        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:10,marginBottom:14}}>
-          <Kpi label="เงินที่ต้องมี" value={fmtTHB(req)}
-            sub={`SWR ${swr}% · ฿${(mo/1e3).toFixed(0)}K/เดือน`}
-            color="#FBBF24" border="#FBBF2433" bg="#1a1200"/>
-          <Kpi label={gap>=0?'เกินเป้า ✓':'ยังขาด ✗'} value={fmtTHB(Math.abs(gap))}
-            sub={gap>=0?'พร้อมเกษียณ':`ออมเพิ่ม ฿${fmtS(needSave)}/เดือน`}
-            color={gap>=0?'#34D399':'#f06060'}
-            border={gap>=0?'#34D39933':'#f0606033'}
-            bg={gap>=0?'#021a12':'#1f0606'}/>
-          <Kpi label="เงินหมดอายุ" value={goneAt?`${goneAt} ปี`:'ไม่หมด 🎉'}
-            sub={goneAt?`ขาด ${100-goneAt} ปี`:'พอถึง 100 ปี'}
-            color={goneAt?'#f06060':'#34D399'}
-            border={goneAt?'#f0606033':'#34D39933'}
-            bg={goneAt?'#1f0606':'#021a12'}/>
-          <Kpi label="Real Return/ปี" value={`${realR.toFixed(1)}%`}
-            sub={`${rPct}% − ${iPct}% เงินเฟ้อ`}
-            color="#60A5FA" border="#60A5FA33" bg="#0c1d3b"/>
-        </div>
-        <div style={{background:'#0f1e35',border:'1px solid #1e3a5f',borderRadius:14,padding:'14px 10px 12px',marginBottom:14}}>
-          <div style={{fontSize:11,color:'#475569',marginBottom:10,paddingLeft:4}}>💰 มูลค่าพอร์ต · อายุ {retAge}–{sim[sim.length-1]?.age||100} ปี</div>
-          <Chart data={sim} dataKey="capital" color="#FBBF24" h={190}/>
-        </div>
-        <div style={{background:'#0f1e35',border:'1px solid #1e3a5f',borderRadius:14,padding:'14px 10px 12px'}}>
-          <div style={{fontSize:11,color:'#475569',marginBottom:10,paddingLeft:4}}>📈 ค่าใช้จ่าย/เดือน (บาท)</div>
-          <Chart data={sim} dataKey="monthly" color="#FB923C" h={160}/>
-        </div>
-      </>)}
-
-      {tab===2&&(<>
-        <div style={{background:'#0f1e35',border:'1px solid #1e3a5f',borderRadius:14,padding:'16px 14px',marginBottom:14}}>
-          <div style={{fontSize:11,color:'#475569',marginBottom:12}}>🗓 ช่วงชีวิตหลังเกษียณ</div>
-          <div style={{display:'flex',borderRadius:8,overflow:'hidden',height:32,marginBottom:12}}>
-            {PHASES.map(ph=>{
-              const s=Math.max(ph.range[0],retAge),e=Math.min(ph.range[1],101);
-              if(e<=retAge)return null;
-              const w=((e-s)/(101-retAge))*100;
-              return(
-                <div key={ph.id} style={{width:`${w}%`,background:ph.color,flexShrink:0,
-                  display:'flex',alignItems:'center',justifyContent:'center',
-                  fontSize:10,fontWeight:800,color:'#000'}}>{s}</div>
-              );
-            })}
-          </div>
-          <div style={{display:'flex',gap:10,flexWrap:'wrap'}}>
-            {PHASES.map(ph=>(
-              <div key={ph.id} style={{display:'flex',alignItems:'center',gap:5,fontSize:11}}>
-                <div style={{width:10,height:10,borderRadius:2,background:ph.color}}/>
-                <span style={{color:'#64748b'}}>{ph.th}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {PHASES.map(ph=>{
-          const s=Math.max(ph.range[0],retAge),e=Math.min(ph.range[1]-1,100);
-          if(e<retAge)return null;
-          const midYr=Math.round((s+e)/2)-retAge;
-          const expMo=Math.round(mo*ph.mul*Math.pow(1+iPct/100,Math.max(0,midYr)));
-          const simMid=sim.find(d=>d.age===Math.round((s+e)/2));
-          return(
-            <div key={ph.id} style={{background:ph.bg,border:`1px solid ${ph.color}44`,borderRadius:14,padding:16,marginBottom:12}}>
-              <div style={{display:'flex',justifyContent:'space-between',marginBottom:8}}>
-                <div>
-                  <div style={{color:ph.color,fontWeight:900,fontSize:16}}>{ph.th}</div>
-                  <div style={{color:'#334155',fontSize:12}}>อายุ {s}–{e} ปี · ×{ph.mul}</div>
-                </div>
-                <div style={{textAlign:'right'}}>
-                  <div style={{color:'#e2e8f0',fontWeight:900,fontSize:20}}>฿{fmtS(expMo)}</div>
-                  <div style={{color:'#334155',fontSize:11}}>/ เดือน</div>
-                </div>
-              </div>
-              <div style={{color:'#64748b',fontSize:12,marginBottom:10}}>{ph.desc}</div>
-              <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
-                {[
-                  {l:'ต่อปี',         v:`฿${fmtS(expMo*12)}`,    c:'#e2e8f0'},
-                  {l:'เพิ่มจากฐาน',  v:`+${Math.round((ph.mul-1)*100)}%`, c:ph.color},
-                  {l:'พอร์ตกลางช่วง',v:simMid?`฿${fmtS(simMid.capital)}`:'หมดแล้ว',c:simMid?'#60A5FA':'#f06060'},
-                ].map(({l,v,c})=>(
-                  <div key={l} style={{background:'#00000030',borderRadius:8,padding:'8px 10px'}}>
-                    <div style={{color:'#334155',fontSize:10,marginBottom:3}}>{l}</div>
-                    <div style={{color:c,fontWeight:800,fontSize:13}}>{v}</div>
-                  </div>
-                ))}
-              </div>
+        {tab === 0 && (<>
+          <Sec title={t.secPersonal}>
+            <Slider label={t.curAge} value={curAge} min={20} max={65} step={1}
+              onChange={v => { setCur(v); if (v >= retAge) setRet(v + 1); }} display={t.ageUnit} />
+            <Slider label={t.retAge} value={retAge} min={35} max={70} step={1}
+              onChange={v => setRet(Math.max(v, curAge + 1))} display={t.ageUnit}
+              note={yL > 0 ? t.yearsLeft(yL) : t.readyNow} />
+          </Sec>
+          <Sec title={t.secExpense}>
+            <Slider label={t.monthlyExp} value={mo} min={20000} max={200000} step={5000}
+              onChange={setMo} display={v => `฿${(v / 1000).toFixed(0)}K`} note={t.monthlyExpNote} />
+            <Slider label={t.savings} value={sav} min={0} max={50000000} step={500000}
+              onChange={setSav} display={v => v >= 1e6 ? `฿${(v / 1e6).toFixed(1)}${t.unitM === 'M' ? 'M' : ' ' + t.unitM}` : `฿${(v / 1e3).toFixed(0)}K`} />
+          </Sec>
+          <Sec title={t.secFinance}>
+            <Slider label={t.retReturn} value={rPct} min={2} max={12} step={0.5}
+              onChange={setRP} display={v => `${v}%`} note={t.retReturnNote} />
+            <Slider label={t.inflation} value={iPct} min={1} max={7} step={0.5}
+              onChange={setIP} display={v => `${v}%`} note={t.inflationNote} />
+            <Slider label={t.swr} value={swr} min={2.5} max={5} step={0.5}
+              onChange={setSwr} display={v => `${v}%`} note={t.swrNote} />
+            <div style={{ background: '#060d1c', borderRadius: 8, padding: '10px 12px', fontSize: 12, color: '#475569' }}>
+              💡 {t.realReturnLabel}: <span style={{ color: '#60A5FA', fontWeight: 800 }}>{realR.toFixed(1)}%</span>
+              {'  ·  '}{t.annualExpLabel}: <span style={{ color: '#FBBF24', fontWeight: 800 }}>{fmtTHB(base, t)}</span>
             </div>
-          );
-        })}
+          </Sec>
+        </>)}
 
-        <div style={{background:'#0f1e35',border:'1px solid #1e3a5f',borderRadius:14,padding:'16px 14px',marginTop:4}}>
-          <div style={{fontSize:10,color:'#334155',letterSpacing:2.5,textTransform:'uppercase',marginBottom:14}}>Checklist ก่อนเกษียณ</div>
-          {[
-            {e:'💰',cat:'การเงิน',c:'#FBBF24',items:[`เป้าหมาย ${fmtTHB(req)}`,'ปิดหนี้ทุกก้อน','passive income จากพอร์ต','เงินฉุกเฉิน 12 เดือน']},
-            {e:'🏥',cat:'สุขภาพ',c:'#34D399',items:['ประกันสุขภาพเอกชน','ตรวจสุขภาพประจำปี','รักษาฟัน/ตา/หูก่อนแก่','ออกกำลังกาย+อาหารดี']},
-            {e:'📋',cat:'กฎหมาย',c:'#C084FC',items:['พินัยกรรม','Power of Attorney','Living Will','วางแผนที่พักผู้สูงอายุ']},
-          ].map(({e,cat,c,items})=>(
-            <div key={cat} style={{marginBottom:16}}>
-              <div style={{color:c,fontWeight:800,fontSize:13,marginBottom:8}}>{e} {cat}</div>
-              {items.map(item=>(
-                <div key={item} style={{display:'flex',gap:8,padding:'6px 0',borderBottom:'1px solid #1e3a5f',color:'#94a3b8',fontSize:12}}>
-                  <span style={{color:'#34D399',flexShrink:0}}>✓</span>{item}
+        {tab === 1 && (<>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+            <Kpi label={t.kpi1Label} value={fmtTHB(req, t)}
+              sub={t.kpi1Sub(swr, (mo / 1e3).toFixed(0))}
+              color="#FBBF24" border="#FBBF2433" bg="#1a1200" />
+            <Kpi label={gap >= 0 ? t.kpi2LabelOk : t.kpi2LabelFail} value={fmtTHB(Math.abs(gap), t)}
+              sub={gap >= 0 ? t.kpi2SubOk : t.kpi2SubFail(`฿${fmtS(needSave, t)}`)}
+              color={gap >= 0 ? '#34D399' : '#f06060'}
+              border={gap >= 0 ? '#34D39933' : '#f0606033'}
+              bg={gap >= 0 ? '#021a12' : '#1f0606'} />
+            <Kpi label={t.kpi3Label} value={goneAt ? t.kpi3ValueFail(goneAt) : t.kpi3ValueOk}
+              sub={goneAt ? t.kpi3SubFail(100 - goneAt) : t.kpi3SubOk}
+              color={goneAt ? '#f06060' : '#34D399'}
+              border={goneAt ? '#f0606033' : '#34D39933'}
+              bg={goneAt ? '#1f0606' : '#021a12'} />
+            <Kpi label={t.kpi4Label} value={`${realR.toFixed(1)}%`}
+              sub={t.kpi4Sub(rPct, iPct)}
+              color="#60A5FA" border="#60A5FA33" bg="#0c1d3b" />
+          </div>
+          <div style={{ background: '#0f1e35', border: '1px solid #1e3a5f', borderRadius: 14, padding: '14px 10px 12px', marginBottom: 14 }}>
+            <div style={{ fontSize: 11, color: '#475569', marginBottom: 10, paddingLeft: 4 }}>
+              {t.chart1Title(retAge, sim[sim.length - 1]?.age || 100)}
+            </div>
+            <Chart data={sim} dataKey="capital" color="#FBBF24" h={190} t={t} />
+          </div>
+          <div style={{ background: '#0f1e35', border: '1px solid #1e3a5f', borderRadius: 14, padding: '14px 10px 12px' }}>
+            <div style={{ fontSize: 11, color: '#475569', marginBottom: 10, paddingLeft: 4 }}>{t.chart2Title}</div>
+            <Chart data={sim} dataKey="monthly" color="#FB923C" h={160} t={t} />
+          </div>
+        </>)}
+
+        {tab === 2 && (<>
+          <div style={{ background: '#0f1e35', border: '1px solid #1e3a5f', borderRadius: 14, padding: '16px 14px', marginBottom: 14 }}>
+            <div style={{ fontSize: 11, color: '#475569', marginBottom: 12 }}>{t.lifeSectionTitle}</div>
+            <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', height: 32, marginBottom: 12 }}>
+              {PHASE_DEF.map(pd => {
+                const s = Math.max(pd.range[0], retAge), e = Math.min(pd.range[1], 101);
+                if (e <= retAge) return null;
+                const w = ((e - s) / (101 - retAge)) * 100;
+                return (
+                  <div key={pd.id} style={{
+                    width: `${w}%`, background: pd.color, flexShrink: 0,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 10, fontWeight: 800, color: '#000',
+                  }}>{s}</div>
+                );
+              })}
+            </div>
+            <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+              {PHASE_DEF.map(pd => (
+                <div key={pd.id} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 11 }}>
+                  <div style={{ width: 10, height: 10, borderRadius: 2, background: pd.color }} />
+                  <span style={{ color: '#64748b' }}>{t.phases[pd.id].th}</span>
                 </div>
               ))}
             </div>
-          ))}
-        </div>
-      </>)}
+          </div>
+
+          {PHASE_DEF.map(pd => {
+            const s = Math.max(pd.range[0], retAge), e = Math.min(pd.range[1] - 1, 100);
+            if (e < retAge) return null;
+            const midYr = Math.round((s + e) / 2) - retAge;
+            const expMo = Math.round(mo * pd.mul * Math.pow(1 + iPct / 100, Math.max(0, midYr)));
+            const simMid = sim.find(d => d.age === Math.round((s + e) / 2));
+            const ph = t.phases[pd.id];
+            return (
+              <div key={pd.id} style={{ background: pd.bg, border: `1px solid ${pd.color}44`, borderRadius: 14, padding: 16, marginBottom: 12 }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
+                  <div>
+                    <div style={{ color: pd.color, fontWeight: 900, fontSize: 16 }}>{ph.th}</div>
+                    <div style={{ color: '#334155', fontSize: 12 }}>{t.ageRange(s, e, pd.mul)}</div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ color: '#e2e8f0', fontWeight: 900, fontSize: 20 }}>฿{fmtS(expMo, t)}</div>
+                    <div style={{ color: '#334155', fontSize: 11 }}>{t.perMonthShort}</div>
+                  </div>
+                </div>
+                <div style={{ color: '#64748b', fontSize: 12, marginBottom: 10 }}>{ph.desc}</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
+                  {[
+                    { l: t.perYear, v: `฿${fmtS(expMo * 12, t)}`, c: '#e2e8f0' },
+                    { l: t.vsBase, v: `+${Math.round((pd.mul - 1) * 100)}%`, c: pd.color },
+                    { l: t.midPortfolio, v: simMid ? `฿${fmtS(simMid.capital, t)}` : t.depleted, c: simMid ? '#60A5FA' : '#f06060' },
+                  ].map(({ l, v, c }) => (
+                    <div key={l} style={{ background: '#00000030', borderRadius: 8, padding: '8px 10px' }}>
+                      <div style={{ color: '#334155', fontSize: 10, marginBottom: 3 }}>{l}</div>
+                      <div style={{ color: c, fontWeight: 800, fontSize: 13 }}>{v}</div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            );
+          })}
+
+          <div style={{ background: '#0f1e35', border: '1px solid #1e3a5f', borderRadius: 14, padding: '16px 14px', marginTop: 4 }}>
+            <div style={{ fontSize: 10, color: '#334155', letterSpacing: 2.5, textTransform: 'uppercase', marginBottom: 14 }}>{t.checklistTitle}</div>
+            {[
+              { e: '💰', cat: t.catFinance, c: '#FBBF24', items: t.itemsFinance(fmtTHB(req, t)) },
+              { e: '🏥', cat: t.catHealth, c: '#34D399', items: t.itemsHealth },
+              { e: '📋', cat: t.catLegal, c: '#C084FC', items: t.itemsLegal },
+            ].map(({ e, cat, c, items }) => (
+              <div key={cat} style={{ marginBottom: 16 }}>
+                <div style={{ color: c, fontWeight: 800, fontSize: 13, marginBottom: 8 }}>{e} {cat}</div>
+                {items.map(item => (
+                  <div key={item} style={{ display: 'flex', gap: 8, padding: '6px 0', borderBottom: '1px solid #1e3a5f', color: '#94a3b8', fontSize: 12 }}>
+                    <span style={{ color: '#34D399', flexShrink: 0 }}>✓</span>{item}
+                  </div>
+                ))}
+              </div>
+            ))}
+          </div>
+        </>)}
 
       </div>
-      <div style={{textAlign:'center',padding:'16px',color:'#1e3a5f',fontSize:10}}>
-        ข้อมูลเพื่อการศึกษา · ควรปรึกษานักวางแผนการเงินก่อนตัดสินใจ
-      </div>
+      <div style={{ textAlign: 'center', padding: '16px', color: '#1e3a5f', fontSize: 10 }}>{t.footer}</div>
     </div>
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
 </script>
 
 <script>
-if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>{
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
     navigator.serviceWorker.register('sw.js')
-      .then(()=>console.log('SW ok'))
-      .catch(e=>console.warn('SW error',e));
+      .then(() => console.log('SW ok'))
+      .catch(e => console.warn('SW error', e));
   });
 }
 </script>

@@ -1,7 +1,7 @@
 {
-  "name": "แผนเกษียณ 45 ปี 🇹🇭",
-  "short_name": "เกษียณ45",
-  "description": "วางแผนเกษียณอายุ 45 ปี อยู่ไทย — คำนวณเงินและ timeline ชีวิต",
+  "name": "Retirement Planner",
+  "short_name": "Retire45",
+  "description": "Plan early retirement in Thailand - TH/EN/JA",
   "start_url": "./index.html",
   "display": "standalone",
   "orientation": "portrait",

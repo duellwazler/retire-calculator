@@ -1,4 +1,4 @@
-const CACHE = 'retire45-v1';
+const CACHE = 'retire45-v2';
 const ASSETS = [
   './',
   './index.html',
