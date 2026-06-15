@@ -22,7 +22,7 @@
 5. If installed as a PWA, close and reopen the app to pick up the update
 
 ## Install on Android
-1. Open the URL in Chrome
+1. Open the URL (https://duellwazler.github.io/retire-calculator/) in Chrome
 2. Tap ⋮ -> "Add to Home screen" / "Install app"
 
 ## Notes
