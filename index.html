@@ -100,6 +100,16 @@ const I18N = {
     ],
     itemsHealth: ['ประกันสุขภาพเอกชน', 'ตรวจสุขภาพประจำปี', 'รักษาฟัน/ตา/หูก่อนแก่', 'ออกกำลังกาย+อาหารดี'],
     itemsLegal: ['พินัยกรรม', 'Power of Attorney', 'Living Will', 'วางแผนที่พักผู้สูงอายุ'],
+    breakdownTitle: 'รายละเอียดค่าใช้จ่าย',
+    categories: {
+      housing: '🏠 ที่อยู่อาศัย',
+      food: '🍜 อาหาร',
+      utilities: '💡 สาธารณูปโภค',
+      health: '🏥 สุขภาพ & ประกัน',
+      transport: '🚗 เดินทาง',
+      leisure: '🎉 ท่องเที่ยว & สันทนาการ',
+      care: '🤝 ผู้ดูแล & เบ็ดเตล็ด',
+    },
     footer: 'ข้อมูลเพื่อการศึกษา · ควรปรึกษานักวางแผนการเงินก่อนตัดสินใจ',
   },
 
@@ -169,6 +179,16 @@ const I18N = {
     ],
     itemsHealth: ['Private health insurance', 'Annual health checkups', 'Dental/eye/ear care before aging', 'Exercise + healthy diet'],
     itemsLegal: ['Will / testament', 'Power of attorney', 'Living will', 'Plan senior living arrangements'],
+    breakdownTitle: 'Expense Breakdown',
+    categories: {
+      housing: '🏠 Housing',
+      food: '🍜 Food',
+      utilities: '💡 Utilities',
+      health: '🏥 Healthcare & Insurance',
+      transport: '🚗 Transport',
+      leisure: '🎉 Leisure & Travel',
+      care: '🤝 Caregiver & Misc',
+    },
     footer: 'For educational purposes only · Consult a financial planner before deciding',
   },
 
@@ -238,6 +258,16 @@ const I18N = {
     ],
     itemsHealth: ['民間医療保険', '毎年の健康診断', '老化前の歯・目・耳のケア', '運動と健康的な食事'],
     itemsLegal: ['遺言書', '委任状（Power of Attorney）', 'リビングウィル（医療に関する意思表示）', '高齢者向け住居の計画'],
+    breakdownTitle: '支出の内訳',
+    categories: {
+      housing: '🏠 住居費',
+      food: '🍜 食費',
+      utilities: '💡 公共料金',
+      health: '🏥 医療・保険',
+      transport: '🚗 交通費',
+      leisure: '🎉 趣味・旅行',
+      care: '🤝 介護・雑費',
+    },
     footer: '教育目的の情報です・意思決定前にファイナンシャルプランナーにご相談ください',
   },
 };
@@ -248,6 +278,16 @@ const PHASE_DEF = [
   { id:2, range:[65,75],  color:'#60A5FA', bg:'#0c1d3b', mul:1.5 },
   { id:3, range:[75,85],  color:'#FB923C', bg:'#2a0d00', mul:2.0 },
   { id:4, range:[85,101], color:'#C084FC', bg:'#1a0a2e', mul:2.4 },
+];
+
+// Share (%) of total monthly expense per category, per phase. Each row sums to 100.
+const CATEGORY_KEYS = ['housing','food','utilities','health','transport','leisure','care'];
+const CATEGORY_SHARES = [
+  { housing:20, food:20, utilities:8, health:10, transport:8, leisure:24, care:10 }, // Go-Go
+  { housing:20, food:19, utilities:8, health:16, transport:7, leisure:18, care:12 }, // Slow-Go
+  { housing:18, food:18, utilities:7, health:24, transport:5, leisure:12, care:16 }, // Senior
+  { housing:14, food:15, utilities:6, health:22, transport:3, leisure:8,  care:32 }, // Support
+  { housing:8,  food:10, utilities:4, health:18, transport:2, leisure:4,  care:54 }, // Full Care
 ];
 
 // ─────────────────────────────────────────────────────────────────────────
@@ -599,6 +639,31 @@ function App() {
                       <div style={{ color: c, fontWeight: 800, fontSize: 13 }}>{v}</div>
                     </div>
                   ))}
+                </div>
+
+                {/* Expense category breakdown */}
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: `1px solid ${pd.color}33` }}>
+                  <div style={{ color: '#475569', fontSize: 10, letterSpacing: 1.5, textTransform: 'uppercase', marginBottom: 9 }}>
+                    {t.breakdownTitle}
+                  </div>
+                  {CATEGORY_KEYS.map(key => {
+                    const pct = CATEGORY_SHARES[pd.id][key];
+                    const amt = Math.round(expMo * pct / 100);
+                    return (
+                      <div key={key} style={{ marginBottom: 7 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, marginBottom: 3 }}>
+                          <span style={{ color: '#94a3b8' }}>{t.categories[key]}</span>
+                          <span style={{ color: '#e2e8f0', fontWeight: 700 }}>
+                            ฿{amt.toLocaleString(t.locale)}{' '}
+                            <span style={{ color: '#475569', fontWeight: 400 }}>({pct}%)</span>
+                          </span>
+                        </div>
+                        <div style={{ height: 5, background: '#00000040', borderRadius: 3, overflow: 'hidden' }}>
+                          <div style={{ height: '100%', width: `${pct}%`, background: pd.color, borderRadius: 3 }} />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             );
