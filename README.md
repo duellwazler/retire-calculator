@@ -12,7 +12,7 @@
 4. Wait 1-2 minutes, open https://[username].github.io/[repo]/
 
 ## Install on Android
-1. Open the URL in Chrome
+1. Open the URL (https://duellwazler.github.io/retire-calculator/) in Chrome
 2. Tap ⋮ -> "Add to Home screen" / "Install app"
 3. Open from your home screen like a normal app
 
